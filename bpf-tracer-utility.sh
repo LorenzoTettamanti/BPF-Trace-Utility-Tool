@@ -4,22 +4,26 @@
 is_traceable=true
 
 
+list_menu() {
+  echo "1-> Kprobe offset finder"
+  echo "2-> tracepoint category finder"
+  echo "3-> List available kprobes/tracepoints"
+  echo "q-> exit"
+  echo "i-> info"
+}
+
 while true; do
   echo "-------------------------------------------------------------------"
   echo "BPF TRACE SCRIPTS UTILITY"
   echo "Functions":
   echo ""
-  echo "1-> Kprobe offset finder"
-  echo "2-> tracepoint category finder"
-  echo "3-> exit"
-  echo "i--> info"
+  list_menu
   echo ""
   echo "Choose a functionality"
   read FUN
   echo ""
   echo "-------------------------------------------------------------------"
   case $FUN in 
-
     1)
       echo "enter Kprobe name"
       read kprobename
@@ -34,6 +38,10 @@ while true; do
         read struct
         echo "enter field"
         read field
+        if [[ -z "$struct" || -z "$field" ]]; then
+          echo -e "Error: Structure and Field cannot be empty.\nPlease try again."
+          continue
+        fi
         echo ""
         echo "Kprobe structure info:"
         sudo bpftrace -e "
@@ -46,7 +54,6 @@ while true; do
         echo "do you want to check if the function has inline implementation? [y/n]"
         read choice
         echo ""
-        
         case $choice in 
           y)
             sudo cat /proc/kallsyms | grep $kprobename
@@ -63,27 +70,56 @@ while true; do
 
     2)
       echo ""
-      echo "Enter tracepoint category"
-      echo "1-> net"
-      read category 
-      
-      case $category in  
-        1)
-          echo "enter structure to find similars"
-          read struct
-          sudo bpftrace -l 'tracepoint:net:*' | grep -i $struct
-          echo ""
-        ;;
-      esac 
+      echo "Available categories (partial list):"
+      sudo ls /sys/kernel/debug/tracing/events/ | grep -v '^_' > ./categories_list.txt
+      echo "Categories have been saved to ./categories_list.txt"
+      echo "Enter tracepoint category (e.g., net, sched, block, ...):"
+      read -r category 
+      if [[ -z "$category" ]]; then
+        echo -e "Category cannot be empty"
+        continue
+      fi
+      echo "Enter structure to find similars:"
+      read -r struct
+      if [[ -z "$struct" ]]; then
+        echo -e "Struct cannot be empty"
+        continue
+      fi
+      sudo bpftrace -l "tracepoint:$category:*" | grep -i $struct
+      echo ""
       ;;
     
     3)
-      echo "exiting..."
-      exit
+      echo "List what? (kprobes/tracepoints)"
+      read -r what
+      case $what in
+        kprobes)
+          echo "Available kprobes:"
+          sudo bpftrace -l "kprobe:*" > ./kprobes_list.txt
+          echo "Kprobes have been saved to ./kprobes_list.txt"
+          ;;
+        tracepoints)
+          echo "Available tracepoints (all categories):"
+          sudo bpftrace -l "tracepoint:*" > ./tracepoints_list.txt
+          echo "Tracepoints have been saved to ./tracepoints_list.txt"
+          ;;
+        *)
+          echo "Unknown option"
+          ;;
+      esac
       ;;
-    
+
+    q|Q)
+      echo "Exiting..."
+      exit 0
+      ;;
+
     i)
       echo "Developers utility tool to navigate in the linux kernel using bpftrace" 
+      ;;
+
+    *)
+      echo -e "Invalid option. Please try again.\n"
       ;;
   esac
 done
