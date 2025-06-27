@@ -6,7 +6,7 @@ is_traceable=true
 
 list_menu() {
   echo "1-> Kprobe offset finder"
-  echo "2-> tracepoint category finder"
+  echo "2-> Tracepoint category finder"
   echo "3-> List available kprobes/tracepoints"
   echo "q-> exit"
   echo "i-> info"
@@ -25,7 +25,14 @@ while true; do
   echo "-------------------------------------------------------------------"
   case $FUN in 
     1)
-      echo "enter Kprobe name"
+      clear
+      echo "Kprobe Offset Finder: insert the kprobe name and the field name to retrieve all offsets corresponding to matching fields."
+      echo ""
+      echo " Output format: <var-type> <var-name> <offset> <bit length>"
+      echo " Example: 	char     name[16];      /*   304    16 */ "
+      echo ""
+
+      echo "enter Kprobe name:"
       read kprobename
       echo "Is the probe traceable?"
       output=$(sudo bpftrace -l "kprobe:$kprobename" 2>/dev/null)
@@ -39,17 +46,12 @@ while true; do
         echo "enter field"
         read field
         if [[ -z "$struct" || -z "$field" ]]; then
-          echo -e "Error: Structure and Field cannot be empty.\nPlease try again."
+          echo -e "Error: Structure and fieldd cannot be empty.\nPlease try again."
           continue
         fi
         echo ""
         echo "Kprobe structure info:"
-        sudo bpftrace -e "
-        kprobe:$kprobename {
-          @offset = offsetof(struct $struct, $field);
-          printf(\"Offset $field: %d\\\n\", @offset);
-          exit();
-        }"
+        sudo pahole -C $struct | grep $field
         echo ""
         echo "do you want to check if the function has inline implementation? [y/n]"
         read choice
@@ -69,6 +71,8 @@ while true; do
       ;;
 
     2)
+      clear
+      echo "Tracepoint category finder and save the result in a .txt file"
       echo ""
       echo "Available categories (partial list):"
       sudo ls /sys/kernel/debug/tracing/events/ | grep -v '^_' > ./categories_list.txt
@@ -90,6 +94,8 @@ while true; do
       ;;
     
     3)
+      clear
+      echo "List available kprobes/tracepoints and save the result in a .txt file"
       echo "List what? (kprobes/tracepoints)"
       read -r what
       case $what in
@@ -115,7 +121,7 @@ while true; do
       ;;
 
     i)
-      echo "Developers utility tool to navigate in the linux kernel using bpftrace" 
+      echo "Developers utility tool to navigate in the linux kernel using bpftrace and pahole" 
       ;;
 
     *)
